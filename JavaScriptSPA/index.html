@@ -4,6 +4,7 @@
     <title>Quickstart for MSAL JS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bluebird/3.3.4/bluebird.min.js"></script>
     <script src="https://secure.aadcdn.microsoftonline-p.com/lib/1.0.0/js/msal.js"></script>
+    <script src="https://unpkg.com/@microsoft/mgt/dist/bundle/mgt-loader.js"></script>
 </head>
 
 <body>
@@ -15,6 +16,21 @@
         <div class="rightContainer">
             <pre id="json"></pre>
         </div>
+
+        <mgt-people>
+            <!-- templating -->
+            <!-- <template>
+                <div data-for="person in people">
+                    <mgt-person person-query={{person.userPrincipalName}}
+                                show-name
+                                show-email></mgt-person>
+                </div>
+            </template> -->
+        </mgt-people>
+
+        <mgt-agenda group-by-day></mgt-agenda>
+        <mgt-tasks data-source="todo"></mgt-tasks>
+        
     </div>
 <script>
     var msalConfig = {
@@ -43,6 +59,19 @@
     // Register Callbacks for redirect flow
     // myMSALObj.handleRedirectCallbacks(acquireTokenRedirectCallBack, acquireTokenErrorRedirectCallBack);
     myMSALObj.handleRedirectCallback(authRedirectCallBack);
+
+    mgt.Providers.globalProvider = new mgt.SimpleProvider(async function(scopes){
+        var request = { scopes: scopes };
+
+        try {
+            let response = await myMSALObj.acquireTokenSilent(request);
+            return response.accessToken;
+        } catch (error) {
+            if (requiresInteraction(error.errorCode)) {
+                myMSALObj.acquireTokenRedirect(request);
+            }
+        }
+    })
 
     function signIn() {
         myMSALObj.loginPopup(requestObj).then(function (loginResponse) {
@@ -94,6 +123,8 @@
     }
 
     function showWelcomeMessage() {
+        mgt.Providers.globalProvider.setState(mgt.ProviderState.SignedIn);
+
         var divWelcome = document.getElementById('WelcomeMessage');
         divWelcome.innerHTML = "Welcome " + myMSALObj.getAccount().userName + " to Microsoft Graph API";
         var loginbutton = document.getElementById('SignIn');
@@ -156,6 +187,8 @@
         if (myMSALObj.getAccount()) {// avoid duplicate code execution on page load in case of iframe and popup window.
             showWelcomeMessage();
             acquireTokenPopupAndCallMSGraph();
+        } else {
+            mgt.Providers.globalProvider.setState(mgt.ProviderState.SignedOut);
         }
     }
     else if (loginType === 'REDIRECT') {
@@ -166,6 +199,8 @@
         if (myMSALObj.getAccount() && !myMSALObj.isCallback(window.location.hash)) {// avoid duplicate code execution on page load in case of iframe and popup window.
             showWelcomeMessage();
             acquireTokenRedirectAndCallMSGraph();
+        } else {
+            mgt.Providers.globalProvider.setState(mgt.ProviderState.SignedOut);
         }
     } else {
         console.error('Please set a valid login type');
